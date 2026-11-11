@@ -27,18 +27,18 @@ PROMPT = "\x1b[1;32m$\x1b[0m "
 SEND = "cartesi send --encoding string '{\"op\":\"trade\",\"asset\":\"ETH\",\"price\":\"3150\",\"qty\":\"1\"}'"
 
 STEPS = [
-    ("say", "# DuckDB 2.0 (cross-compilada p/ riscv64) rodando dentro da Cartesi Machine"),
+    ("say", "# DuckDB 2.0 (cross-compiled for riscv64) running inside a Cartesi Machine"),
     ("run", "./scripts/inspect.sh info"),
-    ("say", "# 1) estado atual do banco: 1 trade de ETH a 3000"),
+    ("say", "# 1) current database state: 1 ETH trade at 3000"),
     ("run", "./scripts/inspect.sh stats"),
-    ("say", "# 2) envia um novo trade pela CLI da Cartesi (vai para o InputBox on-chain)"),
+    ("say", "# 2) send a new trade with the Cartesi CLI (goes to the on-chain InputBox)"),
     ("run", SEND),
     ("wait", "input 1 from"),
-    ("say", "# 3) logs do app: o input foi gravado no DuckDB"),
+    ("say", "# 3) app logs: the input was written to DuckDB"),
     ("run", "./scripts/applog.sh 2"),
-    ("say", "# 4) inspect consulta o banco de novo: VWAP e trades mudaram"),
+    ("say", "# 4) inspect queries the database again: VWAP and trade count changed"),
     ("run", "./scripts/inspect.sh stats"),
-    ("say", "# 5) e o log do app mostra o SELECT que respondeu esse inspect"),
+    ("say", "# 5) and the app log shows the SELECT that answered that inspect"),
     ("run", "./scripts/applog.sh 1"),
 ]
 

@@ -78,7 +78,7 @@ def test_sandbox_blocks_extension_dir(db):
 # --------------------------------------------------------------------------- codecs
 
 
-@pytest.mark.parametrize("s", ["", "stats", '{"op":"trade"}', "ação ✓"])
+@pytest.mark.parametrize("s", ["", "stats", '{"op":"trade"}', "naïve café ✓"])
 def test_hex_roundtrip(s):
     assert dapp.hex_to_str(dapp.str_to_hex(s)) == s
     assert dapp.hex_to_str(dapp.str_to_hex(s)[2:]) == s

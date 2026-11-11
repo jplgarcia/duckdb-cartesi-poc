@@ -1,30 +1,35 @@
 # duckdb-cartesi-poc
 
-App Python para **Cartesi Rollups v2** que usa **DuckDB 2.0.0** como banco
-analítico dentro da Cartesi Machine (RISC-V). A DuckDB não publica wheel
-`linux_riscv64`, então o módulo Python é **compilado por cross compile**: o
-compilador roda nativo no host (arm64 ou amd64) e gera código riscv64. Não usa
-QEMU no build, e nada da DuckDB é instalado no host.
+A Python **Cartesi Rollups v2** app that uses **DuckDB 2.0.0** as its analytical
+database inside the Cartesi Machine (RISC-V). DuckDB does not ship a
+`linux_riscv64` wheel, so the Python module is **cross-compiled**: the compiler
+runs natively on the host (arm64 or amd64) and emits riscv64 code. The build
+uses no QEMU, and nothing DuckDB-related gets installed on the host.
 
 ![demo](demo/demo.gif)
 
-> No vídeo: um trade é enviado pela CLI da Cartesi, o log do app mostra o
-> `INSERT` no DuckDB, e o inspect consulta o banco de novo com o VWAP alterado.
-> Versão em MP4: [demo/demo.mp4](demo/demo.mp4).
+> In the video: a trade is sent with the Cartesi CLI, the app log shows the
+> `INSERT` into DuckDB, and an inspect queries the database again and returns the
+> updated VWAP. MP4 version: [demo/demo.mp4](demo/demo.mp4).
+>
+> The recording is real: [demo/record.py](demo/record.py) runs every command
+> against a live devnet and captures its actual output. Only the typing is
+> simulated, idle gaps are shortened, and the wait for the node to process the
+> input happens off camera.
 
-Testado em 2026-11-11 com Cartesi CLI `2.0.0-alpha.35`, machine-guest-tools
-`0.18.0`, base `cartesi/python:3.13.2-slim-noble`, Docker Desktop 4 GB, Mac arm64.
+Tested on 2026-11-11 with Cartesi CLI `2.0.0-alpha.35`, machine-guest-tools
+`0.18.0`, base image `cartesi/python:3.13.2-slim-noble`, Docker Desktop with 4 GB, arm64 Mac.
 
-## Requisitos
+## Requirements
 
-- Docker (com buildx; o Docker Desktop já traz QEMU para riscv64)
+- Docker with buildx (Docker Desktop already ships QEMU for riscv64)
 - [Cartesi CLI](https://docs.cartesi.io/cartesi-rollups/2.0/development/installation/) `2.0.0-alpha.35`
-- `python3` 3.9+ só com a biblioteca padrão (para o e2e e para gravar o demo)
+- `python3` 3.9+ with only the standard library (for the e2e test and the demo recorder)
 
-O wheel riscv64 já vem versionado em `riscv-wheel-index/`, então não precisa
-compilar a DuckDB para rodar o app.
+The riscv64 wheel is committed under `riscv-wheel-index/`, so you do not need to
+compile DuckDB to run the app.
 
-## Rodando
+## Running
 
 ```bash
 cartesi build
@@ -34,7 +39,7 @@ cartesi build
 cartesi run
 ```
 
-Em outro terminal, consulte o estado, envie um trade e consulte de novo.
+In another terminal, query the state, send a trade, and query again.
 
 ```console
 $ ./scripts/inspect.sh stats
@@ -49,7 +54,7 @@ $ ./scripts/inspect.sh stats
   }
 ]
 $ cartesi send --encoding string '{"op":"trade","asset":"ETH","price":"3150","qty":"1"}'
-✔ Input sent: 0xe6d68c31f97d65c30b1083bec17f9c2b92ed1803bb294aefb6594b45113c79a9
+✔ Input sent: 0xc58f344561c7f36d2080302c04f93d5ccd5e4938ab70eed6788017423b178fce
 $ ./scripts/applog.sh 2
 [dapp] [db] input 1 from 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266: INSERT INTO trades (ETH, price=3150, qty=1)
 [dapp] [db] trades now has 2 row(s); ETH vwap=3050.000000 trades=2
@@ -68,7 +73,7 @@ $ ./scripts/applog.sh 1
 [dapp] [db] inspect 'stats': SELECT from trades -> 1 row(s): [{"asset":"ETH","trades":2,"vwap":"3050.000000","low":"3000.000000","high":"3150.000000","volume":"3.000000"}]
 ```
 
-VWAP = (3000·2 + 3150·1) / 3 = 3050. `info` mostra o que está rodando:
+VWAP = (3000·2 + 3150·1) / 3 = 3050. The `info` route shows what is running:
 
 ```console
 $ ./scripts/inspect.sh info
@@ -84,54 +89,55 @@ $ ./scripts/inspect.sh info
 }
 ```
 
-Helpers: `scripts/inspect.sh <rota>` faz o inspect e decodifica os reports, e
-`scripts/applog.sh [n]` mostra as últimas linhas `[dapp] [db]` de `cartesi logs`.
-Ambos aceitam `BASE_URL` e `APP` (padrão `http://127.0.0.1:6751` e `duckdb-cartesi-poc`).
+Helpers: `scripts/inspect.sh <route>` sends an inspect and decodes the reports,
+and `scripts/applog.sh [n]` prints the last `[dapp] [db]` lines from
+`cartesi logs`. Both honor `BASE_URL` and `APP` (defaults
+`http://127.0.0.1:6751` and `duckdb-cartesi-poc`).
 
-## O app
+## The app
 
-Um registro de trades com estatísticas em SQL.
+A trade ledger with SQL statistics.
 
-| Advance (JSON em UTF-8) | Efeito |
+| Advance (UTF-8 JSON) | Effect |
 | --- | --- |
-| `{"op":"trade","asset":"ETH","price":"3000.00","qty":"2"}` | insere 1 trade e emite notice com as stats do ativo |
-| `{"op":"batch","trades":[...]}` | até 500 trades num input |
-| qualquer outra coisa | `reject` + report com o motivo |
+| `{"op":"trade","asset":"ETH","price":"3000.00","qty":"2"}` | inserts 1 trade and emits a notice with the asset's stats |
+| `{"op":"batch","trades":[...]}` | up to 500 trades in one input |
+| anything else | `reject` plus a report with the reason |
 
-| Inspect (payload cru) | Resposta |
+| Inspect (raw payload) | Response |
 | --- | --- |
-| `info` | versão, plataforma, settings do engine, total de linhas |
-| `stats` | count, VWAP, min, max e volume por ativo |
-| `top/<n>` | senders com maior notional |
-| `candles/<asset>` | OHLC por bucket de 10 blocos |
+| `info` | version, platform, engine settings, row count |
+| `stats` | count, VWAP, min, max and volume per asset |
+| `top/<n>` | senders with the highest notional |
+| `candles/<asset>` | OHLC per 10-block bucket |
 
-Escolhas de projeto (em [dapp.py](dapp.py)):
+Design choices (in [dapp.py](dapp.py)):
 
-- **Banco em memória.** O snapshot da máquina já persiste a RAM entre inputs, e
-  um `reject` reverte a máquina inteira, banco incluído.
-- **`threads = 1`.** A máquina tem um hart só, e uma ordem fixa de redução
-  deixa os agregados reproduzíveis bit a bit.
-- **`DECIMAL(18,6)` e preço como string.** Float em JSON seria arredondado
-  antes de chegar ao banco, por isso preço numérico é rejeitado.
-- **Sandbox.** `enable_external_access=false`, `autoload/autoinstall=false` e
-  `lock_configuration=true`. Nenhum input consegue ler arquivo, abrir rede,
-  baixar extensão ou desfazer essas configurações. As 4 extensões usadas
-  (core_functions, json, parquet, icu) vêm linkadas estaticamente no módulo.
-- **Queries parametrizadas.** Nenhuma string de input entra no SQL.
-- [cartesi.toml](cartesi.toml) sobe a RAM da máquina para 512 MiB. A DuckDB fica limitada a 256 MB.
+- **In-memory database.** The machine snapshot already keeps RAM between
+  inputs, and a `reject` rolls back the whole machine, database included.
+- **`threads = 1`.** The machine has a single hart, and a fixed reduction order
+  keeps aggregates bit-for-bit reproducible.
+- **`DECIMAL(18,6)` with prices as strings.** A JSON float would be rounded
+  before reaching the database, so numeric prices are rejected.
+- **Sandbox.** `enable_external_access=false`, `autoload/autoinstall=false` and
+  `lock_configuration=true`. No input can read files, open network connections,
+  download extensions, or undo these settings. The 4 extensions in use
+  (core_functions, json, parquet, icu) are statically linked into the module.
+- **Parameterized queries.** No input string is ever spliced into SQL.
+- [cartesi.toml](cartesi.toml) raises the machine RAM to 512 MiB. DuckDB is capped at 256 MB.
 
-## Testes
+## Tests
 
-### Unitários (dentro de riscv64)
+### Unit tests (inside riscv64)
 
 ```bash
 ./scripts/test.sh
 ```
 
-Monta uma imagem `linux/riscv64` com a mesma base da Cartesi Machine e o mesmo
-wheel cross-compilado, e roda o pytest nela (via QEMU em hosts que não são
-RISC-V). Ou seja, testa o artefato real e não uma DuckDB do host. Argumentos
-extras vão para o pytest (`./scripts/test.sh -k inspect`).
+This builds a `linux/riscv64` image from the same base as the Cartesi Machine,
+installs the same cross-compiled wheel, and runs pytest in it (through QEMU on
+non-RISC-V hosts). So it tests the real artifact, not a host build of DuckDB.
+Extra arguments are passed to pytest (`./scripts/test.sh -k inspect`).
 
 ```console
 $ ./scripts/test.sh
@@ -153,29 +159,29 @@ tests/test_dapp.py::test_finish_loop_propagates_status_and_outputs PASSED [100%]
 ============================== 38 passed in 9.74s ==============================
 ```
 
-O que cobrem ([tests/test_dapp.py](tests/test_dapp.py)):
+What they cover ([tests/test_dapp.py](tests/test_dapp.py)):
 
-- o módulo roda em riscv64, se identifica como `linux_riscv64` e tem as 4 extensões estáticas;
-- advance aceito grava no banco e o notice traz as stats certas (VWAP conferido à mão);
-- 15 formas de input inválido são rejeitadas sem escrever nada;
-- replay das mesmas entradas em bancos novos dá saídas idênticas byte a byte;
-- todas as rotas de inspect, e inspect nunca altera o banco;
-- sandbox: `read_csv('/etc/passwd')`, `COPY ... TO` e `SET enable_external_access=true` falham;
-- o loop `/finish` contra um rollup server falso: status de accept/reject propagado
-  e outputs na ordem certa.
+- the module runs on riscv64, reports itself as `linux_riscv64`, and has the 4 static extensions;
+- an accepted advance writes to the database and the notice carries the right stats (VWAP checked by hand);
+- 15 kinds of invalid input are rejected without writing anything;
+- replaying the same inputs into fresh databases gives byte-identical outputs;
+- every inspect route, and inspect never changes the database;
+- sandbox: `read_csv('/etc/passwd')`, `COPY ... TO` and `SET enable_external_access=true` all fail;
+- the `/finish` loop against a fake rollup server: accept/reject status is
+  propagated and outputs come out in the right order.
 
-### End-to-end (no devnet)
+### End-to-end (on the devnet)
 
-Com `cartesi run` no ar:
+With `cartesi run` up:
 
 ```bash
 python3 tests/e2e.py
 ```
 
-Usa só a biblioteca padrão. Envia 4 inputs pela `cartesi send` (2 válidos, 2
-inválidos, de duas contas), espera o node processar e confere status, notices e
-inspect. Cada execução usa um ativo com nome aleatório, então funciona num
-devnet que já tem inputs.
+Standard library only. It sends 4 inputs with `cartesi send` (2 valid, 2
+invalid, from two accounts), waits for the node to process them, and checks
+statuses, notices and inspect results. Each run uses a randomly named asset, so
+it works on a devnet that already has inputs.
 
 ```console
 $ python3 tests/e2e.py
@@ -215,64 +221,66 @@ OK
 
 ### CI
 
-[.github/workflows/ci.yml](.github/workflows/ci.yml) roda os testes unitários
-(riscv64 via QEMU) e depois o e2e completo: instala a Cartesi CLI, faz
-`cartesi build`, sobe `cartesi run` e roda `tests/e2e.py`.
-[.github/workflows/wheel.yml](.github/workflows/wheel.yml) (manual) recompila o
-wheel num runner amd64 e publica como artefato.
+[.github/workflows/ci.yml](.github/workflows/ci.yml) runs the unit tests
+(riscv64 through QEMU) and then the full e2e: it installs the Cartesi CLI, runs
+`cartesi build`, starts `cartesi run`, and runs `tests/e2e.py`.
+[.github/workflows/wheel.yml](.github/workflows/wheel.yml) (manual) rebuilds the
+wheel on an amd64 runner and uploads it as an artifact.
 
-## Como o cross compile funciona
+## How the cross-compile works
 
 ```
 host (arm64/amd64, Docker)                         Cartesi Machine (riscv64)
 ┌──────────────────────────────────────┐          ┌───────────────────────────┐
-│ wheel-builder/Dockerfile             │          │ Dockerfile (template v2)  │
+│ wheel-builder/Dockerfile             │          │ Dockerfile (v2 template)  │
 │  python 3.13.2 (host) + numpy,       │  .whl    │  pip install --no-index   │
 │  nanobind, scikit-build-core         ├────────► │   riscv-wheel-index/      │
 │  g++-12 riscv64-linux-gnu (cross)    │          │  python3 dapp.py          │
-│  headers do Python ALVO (riscv64)    │          │   └─ import duckdb        │
+│  TARGET Python headers (riscv64)     │          │   └─ import duckdb        │
 └──────────────────────────────────────┘          └───────────────────────────┘
 ```
 
-Para recompilar o wheel (só quando mudar a versão da DuckDB):
+To rebuild the wheel (only needed when changing the DuckDB version):
 
 ```bash
 ./scripts/build-duckdb-wheel.sh
 ```
 
-O script baixa o sdist do PyPI (sha256 conferido), compila
-`duckdb-<ver>-cp312-abi3-linux_riscv64.whl` em
-`riscv-wheel-index/wheels/cp313/duckdb/` e confere que o resultado é ELF RISC-V
-sem símbolos `__atomic_*` pendentes. Leva uns 12 min com 2 jobs. Com mais
-memória no Docker, use `JOBS=4`, e para outra versão use `DUCKDB_VERSION=x.y.z`
-(atualize `requirements.txt` e `riscv-wheel-index/index.json`). O diretório de
-build fica num cache do BuildKit, então um build interrompido continua de onde parou.
+The script downloads the sdist from PyPI (sha256 checked), builds
+`duckdb-<ver>-cp312-abi3-linux_riscv64.whl` into
+`riscv-wheel-index/wheels/cp313/duckdb/`, and checks that the result is a RISC-V
+ELF with no unresolved `__atomic_*` symbols. It takes about 12 minutes with 2
+jobs. With more memory in Docker, use `JOBS=4`. For another version, set
+`DUCKDB_VERSION=x.y.z` and update `requirements.txt` and
+`riscv-wheel-index/index.json`. The build directory lives in a BuildKit cache,
+so an interrupted build resumes where it stopped.
 
-### Problemas encontrados e como foram resolvidos
+### Problems hit and how they were solved
 
-| Sintoma | Causa | Solução |
+| Symptom | Cause | Fix |
 | --- | --- | --- |
-| pip tentou compilar o numpy do zero e falhou | `_PYTHON_HOST_PLATFORM=linux-riscv64` valia também para as deps de build, e o pip procurou wheels riscv64 | deps de build instaladas nativas antes, `--no-build-isolation`, variável só no `pip wheel` |
-| `cc1plus` morto por falta de memória | arquivos unity da DuckDB usam 1 a 1,5 GB cada, e 4 jobs não cabem em 4 GB de Docker | `JOBS=2` por padrão |
-| `undefined symbol: __atomic_exchange_1` no import | GCC 12 não gera inline os atômicos de 1 e 2 bytes em RISC-V (o 13+ gera) e a imagem alvo não tem `libatomic1` | `libatomic.a` (PIC) linkada estática no fim da linha de link, com os símbolos escondidos |
-| `-latomic` em `CMAKE_SHARED_LINKER_FLAGS` não fez efeito | o módulo é `MODULE` (nanobind), não `SHARED`, e o flag entrava antes dos objetos | usar `CMAKE_CXX_STANDARD_LIBRARIES` |
-| `PRAGMA platform` dizia `linux_amd64` | a DuckDB rotula todo 64-bit que não é ARM como amd64 | `DUCKDB_EXPLICIT_PLATFORM=linux_riscv64` |
-| inspect respondia "unknown route" com o JSON inteiro | no node v2 o corpo do POST de inspect é o payload cru, não `{"payload":"0x.."}` | `curl --data-binary "<rota>"` |
+| pip tried to build numpy from source and failed | `_PYTHON_HOST_PLATFORM=linux-riscv64` also applied to the build dependencies, so pip looked for riscv64 wheels | install the build deps natively first, use `--no-build-isolation`, set the variable only for `pip wheel` |
+| `cc1plus` killed (out of memory) | DuckDB's unity sources take 1 to 1.5 GB each, and 4 jobs do not fit in 4 GB of Docker memory | `JOBS=2` by default |
+| `undefined symbol: __atomic_exchange_1` on import | GCC 12 does not inline 1- and 2-byte atomics on RISC-V (GCC 13+ does), and the target image has no `libatomic1` | link `libatomic.a` (position independent) statically at the end of the link line, with its symbols hidden |
+| `-latomic` in `CMAKE_SHARED_LINKER_FLAGS` had no effect | the module is a CMake `MODULE` (nanobind), not `SHARED`, and the flag came before the objects | use `CMAKE_CXX_STANDARD_LIBRARIES` |
+| `PRAGMA platform` said `linux_amd64` | DuckDB labels every non-ARM 64-bit build as amd64 | `DUCKDB_EXPLICIT_PLATFORM=linux_riscv64` |
+| inspect answered "unknown route" with the whole JSON body | on the v2 node the inspect POST body is the raw payload, not `{"payload":"0x.."}` | `curl --data-binary "<route>"` |
 
-Compatibilidade binária: o builder usa glibc 2.36 (bookworm), mais antiga que a
-2.39 do alvo (noble). A `libstdc++` do alvo (GCC 14) é mais nova que a do
-compilador (GCC 12). Os headers do Python vêm da própria imagem riscv64 alvo.
+Binary compatibility: the builder uses glibc 2.36 (bookworm), older than the
+target's 2.39 (noble). The target's `libstdc++` (GCC 14) is newer than the
+compiler's (GCC 12). The Python headers come from the riscv64 target image itself.
 
-## Observação sobre reports de inputs rejeitados
+## Note on reports from rejected inputs
 
-No input rejeitado, o app faz `POST /report` (o rollup server responde 202) e o
-advancer registra `status=REJECTED outputs=0 reports=1`. Mesmo assim,
-`cartesi_listReports` devolve `total_count: 0`. O e2e só registra esse
-comportamento, sem afirmar nada. Falta confirmar se é intencional no node v2.
+For a rejected input, the app does `POST /report` (the rollup server answers 202)
+and the advancer logs `status=REJECTED outputs=0 reports=1`. Even so,
+`cartesi_listReports` returns `total_count: 0`. The e2e test only records this
+behavior and asserts nothing about it. Whether it is intended on the v2 node is
+still unconfirmed.
 
-## Gravando o demo de novo
+## Recording the demo again
 
-Com um devnet novo e um trade inicial de ETH (`price 3000`, `qty 2`):
+On a fresh devnet, seed one ETH trade (`price 3000`, `qty 2`), then:
 
 ```bash
 python3 demo/record.py demo/demo.cast
@@ -282,28 +290,27 @@ python3 demo/record.py demo/demo.cast
 ./demo/render.sh
 ```
 
-`record.py` roda os comandos de verdade num pseudo-terminal e grava um asciicast
-(só a digitação é simulada). `render.sh` gera `demo.gif` com o
-[agg](https://github.com/asciinema/agg) e `demo.mp4` com o ffmpeg, os dois dentro do Docker.
+`record.py` runs the commands for real in a pseudo-terminal and writes an
+asciicast (only the typing is simulated). `render.sh` produces `demo.gif` with
+[agg](https://github.com/asciinema/agg) and `demo.mp4` with ffmpeg, both inside Docker.
 
-## Estrutura
+## Layout
 
 ```
-dapp.py                     app: handlers, DuckDB, loop /finish
-Dockerfile                  imagem da Cartesi Machine (template v2 + índice local)
-cartesi.toml                RAM da máquina
+dapp.py                     app: handlers, DuckDB, /finish loop
+Dockerfile                  Cartesi Machine image (v2 template + local wheel index)
+cartesi.toml                machine RAM
 requirements.txt            duckdb == 2.0.0
-riscv-wheel-index/          wheel riscv64 cross-compilado + index.json
-wheel-builder/              Dockerfile, toolchain CMake e download do sdist
+riscv-wheel-index/          cross-compiled riscv64 wheel + index.json
+wheel-builder/              Dockerfile, CMake toolchain, sdist download
 scripts/                    build-duckdb-wheel.sh, test.sh, inspect.sh, applog.sh
-tests/                      test_dapp.py (pytest em riscv64), e2e.py, Dockerfile
+tests/                      test_dapp.py (pytest on riscv64), e2e.py, Dockerfile
 demo/                       record.py, render.sh, demo.cast/.gif/.mp4
 .github/workflows/          ci.yml, wheel.yml
 ```
 
-## Limitações
+## Limitations
 
-- O wheel (22 MB) está versionado no repo.
-- Imagens base fixadas por tag, não por digest.
-- Ciclos por advance não foram medidos. Para cargas pesadas por input, meça antes.
-- O CI ainda não rodou no GitHub. Foi escrito para os mesmos passos validados localmente.
+- The wheel (22 MB) is committed to the repo.
+- Base images are pinned by tag, not by digest.
+- Cycles per advance were not measured. Measure before putting heavy work in a single input.
