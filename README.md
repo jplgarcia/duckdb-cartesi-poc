@@ -12,10 +12,10 @@ uses no QEMU, and nothing DuckDB-related gets installed on the host.
 > `INSERT` into DuckDB, and an inspect queries the database again and returns the
 > updated VWAP. MP4 version: [demo/demo.mp4](demo/demo.mp4).
 >
-> The recording is real: [demo/record.py](demo/record.py) runs every command
-> against a live devnet and captures its actual output. Only the typing is
-> simulated, idle gaps are shortened, and the wait for the node to process the
-> input happens off camera.
+> This is a screen recording of a real terminal (Ghostty, zsh) made with
+> [demo/live.sh](demo/live.sh): the script types each command at the shell
+> prompt and runs it against a live devnet. The devnet start and the first ETH
+> trade happen before the recording starts.
 
 Tested on 2026-11-11 with Cartesi CLI `2.0.0-alpha.35`, machine-guest-tools
 `0.18.0`, base image `cartesi/python:3.13.2-slim-noble`, Docker Desktop with 4 GB, arm64 Mac.
