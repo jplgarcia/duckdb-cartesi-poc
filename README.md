@@ -280,6 +280,24 @@ still unconfirmed.
 
 ## Recording the demo again
 
+### In your own terminal (screen recorder)
+
+```bash
+./demo/live.sh
+```
+
+It starts a fresh devnet off camera, seeds one ETH trade, and waits for Enter.
+Start your screen recorder, press Enter, and the script types each command at
+your real zsh prompt and runs it. Tune it with `TYPE_DELAY`, `STEP_PAUSE` or
+`DEMO_PROMPT='$ '`, reuse a running devnet with `--reuse`, and stop the devnet
+with `./demo/live.sh --stop`. Then turn the exported recording into the README assets:
+
+```bash
+./demo/from-video.sh ~/Downloads/recording.mp4
+```
+
+### Headless (asciicast)
+
 On a fresh devnet, seed one ETH trade (`price 3000`, `qty 2`), then:
 
 ```bash
@@ -305,7 +323,7 @@ riscv-wheel-index/          cross-compiled riscv64 wheel + index.json
 wheel-builder/              Dockerfile, CMake toolchain, sdist download
 scripts/                    build-duckdb-wheel.sh, test.sh, inspect.sh, applog.sh
 tests/                      test_dapp.py (pytest on riscv64), e2e.py, Dockerfile
-demo/                       record.py, render.sh, demo.cast/.gif/.mp4
+demo/                       live.sh, from-video.sh, record.py, render.sh, demo.*
 .github/workflows/          ci.yml, wheel.yml
 ```
 
