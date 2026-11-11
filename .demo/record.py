@@ -5,7 +5,7 @@ Standard library only. Each command runs in a pseudo-terminal (so colors and
 spinners look like a real shell); typing is simulated, output timing is real
 but idle gaps are capped so the video stays short.
 
-usage: python3 demo/record.py demo/demo.cast      (devnet must be running)
+usage: python3 .demo/record.py [.demo/demo.cast]    (devnet must be running)
 """
 import fcntl
 import json
@@ -126,4 +126,4 @@ def main(path):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "demo", "demo.cast"))
+    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, ".demo", "demo.cast"))

@@ -11,11 +11,6 @@ uses no QEMU, and nothing DuckDB-related gets installed on the host.
 > In the video: a trade is sent with the Cartesi CLI, the app log shows the
 > `INSERT` into DuckDB, and an inspect queries the database again and returns the
 > updated VWAP. MP4 version: [demo/demo.mp4](demo/demo.mp4).
->
-> This is a screen recording of a real terminal (Ghostty, zsh) made with
-> [demo/live.sh](demo/live.sh): the script types each command at the shell
-> prompt and runs it against a live devnet. The devnet start and the first ETH
-> trade happen before the recording starts.
 
 Tested on 2026-11-11 with Cartesi CLI `2.0.0-alpha.35`, machine-guest-tools
 `0.18.0`, base image `cartesi/python:3.13.2-slim-noble`, Docker Desktop with 4 GB, arm64 Mac.
@@ -24,7 +19,7 @@ Tested on 2026-11-11 with Cartesi CLI `2.0.0-alpha.35`, machine-guest-tools
 
 - Docker with buildx (Docker Desktop already ships QEMU for riscv64)
 - [Cartesi CLI](https://docs.cartesi.io/cartesi-rollups/2.0/development/installation/) `2.0.0-alpha.35`
-- `python3` 3.9+ with only the standard library (for the e2e test and the demo recorder)
+- `python3` 3.9+ with only the standard library (for the e2e test)
 
 The riscv64 wheel is committed under `riscv-wheel-index/`, so you do not need to
 compile DuckDB to run the app.
@@ -278,40 +273,6 @@ and the advancer logs `status=REJECTED outputs=0 reports=1`. Even so,
 behavior and asserts nothing about it. Whether it is intended on the v2 node is
 still unconfirmed.
 
-## Recording the demo again
-
-### In your own terminal (screen recorder)
-
-```bash
-./demo/live.sh
-```
-
-It starts a fresh devnet off camera, seeds one ETH trade, and waits for Enter.
-Start your screen recorder, press Enter, and the script types each command at
-your real zsh prompt and runs it. Tune it with `TYPE_DELAY`, `STEP_PAUSE` or
-`DEMO_PROMPT='$ '`, reuse a running devnet with `--reuse`, and stop the devnet
-with `./demo/live.sh --stop`. Then turn the exported recording into the README assets:
-
-```bash
-./demo/from-video.sh ~/Downloads/recording.mp4
-```
-
-### Headless (asciicast)
-
-On a fresh devnet, seed one ETH trade (`price 3000`, `qty 2`), then:
-
-```bash
-python3 demo/record.py demo/demo.cast
-```
-
-```bash
-./demo/render.sh
-```
-
-`record.py` runs the commands for real in a pseudo-terminal and writes an
-asciicast (only the typing is simulated). `render.sh` produces `demo.gif` with
-[agg](https://github.com/asciinema/agg) and `demo.mp4` with ffmpeg, both inside Docker.
-
 ## Layout
 
 ```
@@ -323,7 +284,7 @@ riscv-wheel-index/          cross-compiled riscv64 wheel + index.json
 wheel-builder/              Dockerfile, CMake toolchain, sdist download
 scripts/                    build-duckdb-wheel.sh, test.sh, inspect.sh, applog.sh
 tests/                      test_dapp.py (pytest on riscv64), e2e.py, Dockerfile
-demo/                       live.sh, from-video.sh, record.py, render.sh, demo.*
+demo/                       demo.mp4, demo.gif
 .github/workflows/          ci.yml, wheel.yml
 ```
 

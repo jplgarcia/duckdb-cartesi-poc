@@ -6,9 +6,9 @@
 # 2. Clears the screen and, using your real zsh prompt, types and RUNS each
 #    command for real: inspect, cartesi send, app logs, inspect again.
 #
-# usage:  demo/live.sh                 full run (fresh devnet)
-#         demo/live.sh --reuse         use the devnet that is already running
-#         demo/live.sh --stop          just stop the devnet
+# usage:  .demo/live.sh                full run (fresh devnet)
+#         .demo/live.sh --reuse        use the devnet that is already running
+#         .demo/live.sh --stop         just stop the devnet
 # env:    TYPE_DELAY=0.04 STEP_PAUSE=1.5 DEMO_PROMPT='$ ' NO_ENTER=1
 set -eo pipefail
 cd "${0:A:h}/.."
