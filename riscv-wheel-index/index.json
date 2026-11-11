@@ -1,0 +1,19 @@
+{
+  "python_tag": "cp313",
+  "platform": "linux_riscv64",
+  "packages": [
+    {
+      "name": "duckdb",
+      "version": "2.0.0",
+      "file": "wheels/cp313/duckdb/duckdb-2.0.0-cp312-abi3-linux_riscv64.whl",
+      "abi": "cp312-abi3",
+      "platform": "linux_riscv64",
+      "sha256": "1eb23ff1e9c5856e639bf467c2f7e1a5ca8942d372cb7b12678889d400e78a3b",
+      "source": "cross-compile",
+      "builder": "wheel-builder/Dockerfile (python:3.13.2-slim-bookworm + Debian gcc-12 riscv64 cross toolchain)",
+      "sdist": "https://pypi.org/project/duckdb/2.0.0/ (sha256 verified against PyPI metadata)",
+      "static_extensions": ["core_functions", "json", "parquet", "icu"],
+      "notes": "libatomic linked statically; DUCKDB_EXPLICIT_PLATFORM=linux_riscv64"
+    }
+  ]
+}

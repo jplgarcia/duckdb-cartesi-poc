@@ -1,0 +1,4 @@
+# DuckDB + CPython need more than the 128Mi default. The dapp caps DuckDB at
+# 256MB (memory_limit), the rest is kernel, Python and headroom.
+[machine]
+ram_length = "512Mi"

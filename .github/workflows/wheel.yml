@@ -1,0 +1,26 @@
+name: rebuild duckdb wheel
+
+# Manual: cross-compiles the riscv64 wheel on an amd64 runner and uploads it as
+# an artifact, to check the build is reproducible off a Mac.
+on:
+  workflow_dispatch:
+    inputs:
+      duckdb_version:
+        description: DuckDB version on PyPI
+        default: "2.0.0"
+
+jobs:
+  wheel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: ./scripts/build-duckdb-wheel.sh
+        env:
+          DUCKDB_VERSION: ${{ inputs.duckdb_version }}
+          JOBS: "4"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: duckdb-riscv64-wheel
+          path: riscv-wheel-index/wheels/cp313/duckdb/*.whl
