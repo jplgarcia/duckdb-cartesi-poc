@@ -14,6 +14,7 @@ import secrets
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 
 APP = os.environ.get("APP", "duckdb-cartesi-poc")
@@ -61,6 +62,21 @@ def inspect(route: str):
     return [json.loads(bytes.fromhex(r["payload"][2:])) for r in res["reports"]]
 
 
+def wait_ready(timeout=300):
+    """`cartesi run` reports the contract as deployed before the node has
+    loaded the machine; until then inspect answers 503. Slow CI runners hit
+    that window, so poll `info` until the app answers."""
+    deadline = time.time() + timeout
+    while True:
+        try:
+            return inspect("info")
+        except (urllib.error.HTTPError, urllib.error.URLError, ConnectionError) as e:
+            if time.time() > deadline:
+                raise
+            print(f"  waiting for the app ({e})")
+            time.sleep(5)
+
+
 def send(body, sender):
     payload = body if isinstance(body, str) else json.dumps(body)
     subprocess.run(["cartesi", "send", "--encoding", "string", "--from", sender, payload],
@@ -77,7 +93,7 @@ def main():
     print(f"app={APP} base={BASE} asset={asset}")
 
     print("\n[1] devnet is up and the app runs the riscv64 build")
-    (info,) = inspect("info")
+    (info,) = wait_ready()
     check(info["platform"] == "linux_riscv64", f"platform is {info['platform']}")
     check(info["settings"]["threads"] == "1", "threads = 1")
     check(info["settings"]["enable_external_access"] == "false", "external access disabled")
